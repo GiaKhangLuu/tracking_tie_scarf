@@ -1,5 +1,8 @@
+import streamlit as st
+from streamlit_webrtc import webrtc_streamer
 import av
 import cv2
+from twilio.rest import Client
 import numpy as np
 import time
 import streamlit as st
@@ -11,19 +14,22 @@ import random
 
 import mediapipe as mp
 
+account_sid = st.secrets["TWILIO_ACCOUNT_SID"]
+auth_token = st.secrets["TWILIO_AUTH_TOKEN"]
+client = Client(account_sid, auth_token)
+
+token = client.tokens.create()
+
 st.set_page_config(page_title="Pose Compare POC", layout="wide")
-st.title("Tracking Tie Scarf")
+st.title("Theo dõi tư thế  đeo khăn quàng đỏ")
 
-st.sidebar.header("Pose")
-pose_model_complexity = st.sidebar.selectbox("Pose model complexity", [0, 1, 2], index=0)
-pose_min_det_conf = st.sidebar.slider("Pose min detection confidence", 0.0, 1.0, 0.5, 0.01)
-pose_min_trk_conf = st.sidebar.slider("Pose min tracking confidence", 0.0, 1.0, 0.5, 0.01)
+pose_min_det_conf = 0.5
+pose_min_trk_conf = 0.5
 
-flip = st.sidebar.checkbox("Mirror (selfie)", True)
-draw_connections = st.sidebar.checkbox("Draw connections", True)
+flip = True
+draw_connections = True
 
-target_fps = st.sidebar.slider("Target processing FPS (server)", 1, 30, 12, 1)
-resize_width = st.sidebar.selectbox("Resize width", [256, 320, 416, 512, 640], index=2)
+resize_width = 416
 
 TEMPLATE_SEQ_PATH = "./template_seq.npy"
 MIN_VIS = 0.6
@@ -78,7 +84,7 @@ class PoseProcessor(VideoProcessorBase):
     def __init__(self):
         self.pose = mp_pose.Pose(
             static_image_mode=False,
-            model_complexity=int(pose_model_complexity),
+            model_complexity=1,
             enable_segmentation=False,
             min_detection_confidence=float(pose_min_det_conf),
             min_tracking_confidence=float(pose_min_trk_conf),
@@ -102,11 +108,6 @@ class PoseProcessor(VideoProcessorBase):
         
         self.particles = []  # list[dict]
         self.frame_idx = 0
-
-        # 'IDLE' => Notify (go to the correct position for warmup)
-        # 'WARMUP' => Notify (starting to tie)
-        # 'CORRECT' => Notify (show smile icon)
-        # 'WRONG' => Notify (show sad icon)
 
     def _overlay_rgba(self, dst_bgr, icon_rgba, x, y, alpha_mul=1.0):
         """Alpha blend icon_rgba onto dst_bgr at top-left (x,y)."""
@@ -380,23 +381,11 @@ class PoseProcessor(VideoProcessorBase):
             traceback.print_exc()
             return frame
 
-# -----------------------------
-# WebRTC streamer + result rendering
-# -----------------------------
-st.markdown(
-    """
-**Notes:**
-- Click **Start** → countdown 3..1 → system records features in RAM.
-- When both arms are straight (elbow+wrist ≈ 180°) for a few frames, it stops and evaluates.
-- If FAIL, it shows fail slices using buffered frames (no video file is saved).
-"""
-)
-
 webrtc_ctx = webrtc_streamer(
     key="pose",
     mode=WebRtcMode.SENDRECV,
     video_processor_factory=PoseProcessor,
-    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+    rtc_configuration={"iceServers": token.ice_servers},
     media_stream_constraints={"video": True, "audio": False},
     async_processing=True,
 )

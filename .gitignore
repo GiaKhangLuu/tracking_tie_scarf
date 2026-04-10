@@ -6,3 +6,7 @@
 
 *mp4
 *avi
+
+.streamlit
+
+.streamlit/secrets.toml

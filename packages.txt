@@ -1,0 +1,2 @@
+libgl1
+libgtk2.0-dev
