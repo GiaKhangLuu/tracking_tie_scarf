@@ -147,7 +147,7 @@ class PoseProcessor(VideoProcessorBase):
             icon = cv2.resize(base, (size, size), interpolation=cv2.INTER_AREA)
 
             # bottom 1/3 region
-            y_min = int(H * (2.0 / 3.0))
+            y_min = int(H * (1.5 / 3.0))
             y_max = max(y_min + 1, H - size)
 
             x = int(self.rng.integers(0, max(1, W - size)))
@@ -172,7 +172,7 @@ class PoseProcessor(VideoProcessorBase):
         """Move + draw particles; drop expired ones."""
         H, W = out_bgr.shape[:2]
         now = time.time()
-        y_floor = int(H * (2.0 / 3.0))
+        y_floor = int(H * (1.5 / 3.0))
 
         alive = []
         for p in self.particles:
@@ -214,7 +214,7 @@ class PoseProcessor(VideoProcessorBase):
         img = cv2.imread(path, cv2.IMREAD_UNCHANGED)  # RGBA
         if img is None or img.shape[2] != 4:
             raise ValueError(f"Icon must be a PNG with alpha (RGBA): {path}")
-        img = cv2.resize(img, (96, 96), interpolation=cv2.INTER_AREA)
+        img = cv2.resize(img, (128, 128), interpolation=cv2.INTER_AREA)
         return img
 
     def _draw_status(self, out, text, ok=None):
@@ -252,8 +252,8 @@ class PoseProcessor(VideoProcessorBase):
                 continue
             x, y = int(lm.x * W), int(lm.y * H)
             cv2.circle(out, (x, y), 6, (0, 255, 0), -1)
-            cv2.putText(out, str(lm_id), (x + 6, y - 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            #cv2.putText(out, str(lm_id), (x + 6, y - 6),
+            #            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     
     @property
     def run_state(self):
@@ -338,7 +338,7 @@ class PoseProcessor(VideoProcessorBase):
 
                 if self.run_state == 'WRONG' and self.CORRECT_COUNT >= K_CONSECUTIVE_FRAMES:
                     self.run_state_id = 2  # CORRECT
-                    WRONG_COUNT = 0
+                    self.WRONG_COUNT = 0
 
                 if self.run_state == 'IDLE':
                     self.status_text = "Hệ thống chưa phát hiện đủ các khớp tay,\nvui lòng đứng xa ra"
