@@ -35,6 +35,7 @@ TEMPLATE_SEQ_PATH = "./template_seq.npy"
 MIN_VIS = 0.6
 WRONG_ANGLE_THRESHOLD = 50
 K_CONSECUTIVE_FRAMES = 50
+FINISH_CONSECUTIVE_FRAMES = 20
 W_ELBOW_ANGLE = 0.7
 W_WRIST_ANGLE = 0.7
 NUM_FRAME_TO_WARMUP = 10
@@ -93,18 +94,20 @@ class PoseProcessor(VideoProcessorBase):
         self.ids = pose_ids_for_indices()
 
         # run state machine
-        self.state_list = ['IDLE', 'WRONG', 'CORRECT', 'WARMUP']
+        self.state_list = ['IDLE', 'WRONG', 'CORRECT', 'WARMUP', 'FINISH']
         self.run_state_id = 0
         self.warmup_count = 0
         self.text_state = None
         self.status_text = ""
         self.CORRECT_COUNT = 0
         self.WRONG_COUNT = 0
+        self.FINISH_COUNT = 0
 
         self.rng = np.random.default_rng()
 
         self.icon_smile = self._load_rgba("./asset/smile.png")
         self.icon_sad   = self._load_rgba("./asset/sad.png")
+        self.icon_finish = self._load_rgba("./asset/finish.png")
         
         self.particles = []  # list[dict]
         self.frame_idx = 0
@@ -134,7 +137,12 @@ class PoseProcessor(VideoProcessorBase):
         Spawns particles from random positions with random velocities.
         """
         H, W = out_bgr.shape[:2]
-        base = self.icon_smile if kind == "smile" else self.icon_sad
+        if kind == 'smile':
+            base = self.icon_smile
+        elif kind == 'sad':
+            base = self.icon_sad
+        elif kind == 'finish':
+            base = self.icon_finish
 
         lifetime_s = 1.0
         now = time.time()
@@ -311,6 +319,13 @@ class PoseProcessor(VideoProcessorBase):
                         template_seq, 
                         w_elbow_angle=W_ELBOW_ANGLE, 
                         w_wrist_angle=W_WRIST_ANGLE)
+                    left_elbow, right_elbow  = feat[0], feat[1]
+                    left_wrist, right_wrist = feat[2], feat[3]
+                    if (np.abs(left_elbow) > 160 and np.abs(right_elbow) > 160 and
+                        np.abs(left_wrist) > 160 and np.abs(right_wrist) > 160):
+                        self.FINISH_COUNT += 1
+                    else:
+                        self.FINISH_COUNT = 0
                 else:
                     min_err = float('inf')
 
@@ -335,10 +350,16 @@ class PoseProcessor(VideoProcessorBase):
                 if self.run_state == 'CORRECT' and self.WRONG_COUNT >= K_CONSECUTIVE_FRAMES:
                     self.run_state_id = 1  # WRONG
                     self.CORRECT_COUNT = 0
+                    self.FINISH_COUNT = 0
 
                 if self.run_state == 'WRONG' and self.CORRECT_COUNT >= K_CONSECUTIVE_FRAMES:
                     self.run_state_id = 2  # CORRECT
                     self.WRONG_COUNT = 0
+                    self.FINISH_COUNT = 0
+
+                if self.run_state == 'CORRECT' and self.FINISH_COUNT >= FINISH_CONSECUTIVE_FRAMES:
+                    self.run_state_id = 4  # FINISH
+                    self.FINISH_COUNT = 0
 
                 if self.run_state == 'IDLE':
                     self.status_text = "Hệ thống chưa phát hiện đủ các khớp tay,\nvui lòng đứng xa ra"
@@ -352,6 +373,9 @@ class PoseProcessor(VideoProcessorBase):
                 elif self.run_state == 'WRONG':
                     self.status_text = "Bạn đang thực hiện sai, vui lòng điều chỉnh"
                     self.text_state = False
+                elif self.run_state == 'FINISH':
+                    self.status_text = "Chúc mừng, bạn đã hoàn thành"
+                    self.text_state = True
 
                 out = draw_status_pil(out, self.status_text, ok=self.text_state)
 
@@ -362,6 +386,9 @@ class PoseProcessor(VideoProcessorBase):
                 elif self.run_state == "WRONG":
                     if self.frame_idx % 2 == 0:
                         self._spawn_particles(out, kind="sad", n=1)
+                elif self.run_state == 'FINISH':
+                    if self.frame_idx % 2 == 0:
+                        self._spawn_particles(out, kind="finish", n=5)
                 else:
                     # optional: clear particles when not correct/wrong
                     self.particles.clear()
@@ -388,4 +415,9 @@ webrtc_ctx = webrtc_streamer(
     rtc_configuration={"iceServers": token.ice_servers},
     media_stream_constraints={"video": True, "audio": False},
     async_processing=True,
+    translations={
+        "start": "Bắt đầu",
+        "stop": "Bắt đầu lại",
+        "select_device": "Chọn thiết bị",
+    }
 )
