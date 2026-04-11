@@ -35,7 +35,7 @@ TEMPLATE_SEQ_PATH = "./template_seq.npy"
 MIN_VIS = 0.6
 WRONG_ANGLE_THRESHOLD = 20
 K_CONSECUTIVE_FRAMES = 50
-FINISH_CONSECUTIVE_FRAMES = 20
+FINISH_CONSECUTIVE_FRAMES = 30
 W_ELBOW_ANGLE = 0.7
 W_WRIST_ANGLE = 0.7
 NUM_FRAME_TO_WARMUP = 10
@@ -324,6 +324,7 @@ class PoseProcessor(VideoProcessorBase):
                     if (np.abs(left_elbow) > 160 and np.abs(right_elbow) > 160 and
                         np.abs(left_wrist) > 160 and np.abs(right_wrist) > 160):
                         self.FINISH_COUNT += 1
+                        self.WRONG_COUNT -= 1
                     else:
                         self.FINISH_COUNT = 0
                 else:
