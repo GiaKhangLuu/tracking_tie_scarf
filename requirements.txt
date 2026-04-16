@@ -1,6 +1,8 @@
 streamlit
 streamlit-webrtc
-ultralytics
-opencv-python-headless
-av
-numpy
+opencv-python-headless==4.10.0.84
+opencv-python==4.12.0.88
+twilio
+mediapipe==0.10.14
+numpy==2.2.6
+

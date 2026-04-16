@@ -1,1 +1,12 @@
 *.pt
+
+.vscode
+
+*pyc
+
+*mp4
+*avi
+
+.streamlit
+
+.streamlit/secrets.toml
