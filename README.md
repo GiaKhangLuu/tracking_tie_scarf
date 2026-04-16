@@ -88,7 +88,7 @@ Important constants in `app.py`:
 
 ## Demo
 
-<video src="./asset/tie_scarf.mp4" controls width="720"></video>
+<img src="./asset/tie_scarf.gif" height="360" width="720"/>
 
 Source video: https://www.youtube.com/watch?v=30SAzvnVCow
 
